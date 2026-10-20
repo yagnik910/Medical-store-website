@@ -42,7 +42,8 @@ function navTab(b,id){if(innerWidth>900&&matchMedia('(hover:none)').matches)retu
 
 // ===== Bill link, PDF and public invoice page =====
 const INVTOK=new URLSearchParams(location.search).get('inv')||'';
-const siteBase=()=>typeof SITE_URL=='string'&&SITE_URL.trim()?(/\.html?$/i.test(SITE_URL.trim())?SITE_URL.trim():SITE_URL.trim().replace(/\/+$/,'')+'/'):location.origin+location.pathname;
+const siteFix=u=>{u=String(u).trim();return /^https?:\/\//i.test(u)?u:'https://'+u.replace(/^\/+/,'')};
+const siteBase=()=>{if(typeof SITE_URL=='string'&&SITE_URL.trim()){const u=siteFix(SITE_URL);return /\.html?$/i.test(u)?u:u.replace(/\/+$/,'')+'/'}return location.origin+location.pathname};
 const invLink=t=>siteBase()+'?inv='+t;
 function newTok(){const a=new Uint8Array(12);crypto.getRandomValues(a);return Array.from(a,x=>x.toString(36).padStart(2,'0')).join('').slice(0,20)}
 function invSnap(s){const t=taxOf(s);return{store:{name:STORE.name,addr:STORE.addr,gstin:STORE.gstin,dl:STORE.dl},s:{inv:s.inv,date:s.date,time:s.time,cust:s.cust,items:s.items.map(i=>({n:i.n,b:i.b,k:i.k,u:i.u,ps:i.ps,m:i.m,dp:i.dp})),sub:s.sub,ld:s.ld,bd:s.bd||0,tx:t.tx,gst:t.gst,pct:s.cg!==undefined?(+s.rc||0)+(+s.rs||0)+(+s.ri||0):null,ro:s.ro||0,tot:s.tot,mode:s.mode,due:s.mode=='Credit'?Math.max(0,custDue(s.cust)):0}}}
