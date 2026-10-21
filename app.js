@@ -80,22 +80,23 @@ if(A.busy)return;if(!em||!pw)return toast('Enter email and password');
 if(A.mode=='up'){if(pw.length<6)return toast('Password must be at least 6 characters');if(pw!==$('pw2').value)return toast('Passwords do not match');if(sn.length<2)return toast('Enter your store name or username')}
 A.busy=true;A.msg='';draw();
 try{if(A.mode=='up'){const {data,error}=await sb.auth.signUp({email:em,password:pw,options:{data:{store_name:sn}}});if(error)throw error;
-if(data.session)return await enter(data.user);A.mode='in';A.msg='Account created, but Supabase still requires email confirmation. Turn off Confirm email in Supabase (Authentication → Sign In / Providers → Email) so new users go straight in.';A.ok=true}
-else{const {data,error}=await sb.auth.signInWithPassword({email:em,password:pw});if(error)throw error;return await enter(data.user)}}
+if(data.session)return await enter(data.user,true);A.mode='in';A.msg='Account created, but Supabase still requires email confirmation. Turn off Confirm email in Supabase (Authentication → Sign In / Providers → Email) so new users go straight in.';A.ok=true}
+else{const {data,error}=await sb.auth.signInWithPassword({email:em,password:pw});if(error)throw error;return await enter(data.user,true)}}
 catch(e){A.msg=e.message;A.ok=false}
 A.busy=false;draw()}
-async function enter(u){const A=S.auth;A.busy=false;
+async function enter(u,fresh){const A=S.auth;A.busy=false;
 const {data:p,error}=await sb.from('profiles').select('*').eq('id',u.id).maybeSingle();
 if(error||!p){await sb.auth.signOut();A.msg='Could not load your account. Ask the owner to check the setup.';A.ok=false;return draw()}
 if(p.status!=='active'){await sb.auth.signOut();A.msg='Your account is suspended. Contact the owner.';A.ok=false;return draw()}
-S.user=p.email||u.email;S.prof=p;resetData();const had=await loadData(u.id);if(!had&&!S.noSync&&p.store_name){STORE.name=p.store_name;save()}S.view='dashboard';A.msg='';watch();draw()}
+S.user=p.email||u.email;S.prof=p;resetData();const had=await loadData(u.id);if(!had&&!S.noSync&&p.store_name){STORE.name=p.store_name;save()}S.view='dashboard';A.msg='';watch();touch(fresh);draw()}
 async function kick(msg){unwatch();try{await sb.auth.signOut({scope:'local'})}catch(e){}S.user=null;S.prof=null;resetData();S.auth.msg=msg;S.auth.ok=false;lockNow()}
 async function chk(){if(!SBON||!S.prof)return;const {data:ss}=await sb.auth.getSession();if(!ss.session)return kick('Your session ended. Please log in again.');if(ss.session.user.id!==S.prof.id)return;const {data,error}=await sb.from('profiles').select('status').eq('id',S.prof.id).maybeSingle();if(error)return;
 if(!data)return kick('Your account has been removed.');if(data.status!=='active')kick('Your account has been suspended by the owner.')}
-function unwatch(){clearInterval(S.wt);if(S.rt){try{sb.removeChannel(S.rt)}catch(e){}S.rt=null}}
-function watch(){unwatch();S.wt=setInterval(chk,15000);
+function touch(login){if(!SBON||!S.prof||!sb)return;try{sb.rpc('touch_seen',{is_login:!!login}).then(()=>{},()=>{})}catch(e){}}
+function unwatch(){clearInterval(S.wt);clearInterval(S.hb);if(S.rt){try{sb.removeChannel(S.rt)}catch(e){}S.rt=null}}
+function watch(){unwatch();S.wt=setInterval(chk,15000);S.hb=setInterval(()=>{if(!document.hidden)touch(false)},120000);
 S.rt=sb.channel('acct-'+S.prof.id).on('postgres_changes',{event:'UPDATE',schema:'public',table:'profiles',filter:'id=eq.'+S.prof.id},p=>{if(p.new&&p.new.status!=='active')kick('Your account has been suspended by the owner.')}).subscribe()}
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)chk()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){chk();touch(false)}});
 async function logout(){S.menu=false;unwatch();try{await cloudPush()}catch(e){}try{if(sb)await sb.auth.signOut({scope:'local'})}catch(e){}S.user=null;S.prof=null;if(SBON)resetData();S.auth.msg='';lockNow()}
 async function initAuth(){if(INVTOK&&SBON)return pubInvoice();if(SBON){try{const {data}=await sb.auth.getSession();if(data.session)await enter(data.session.user)}catch(e){}}draw()}
 
@@ -174,16 +175,19 @@ if(error){S.dirty=true;toast('Could not save to cloud: '+error.message)}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)cloudPush()});window.addEventListener('pagehide',()=>{cloudPush()});
 
 // ===== Admin: manage accounts (owner only) =====
-async function admLoad(){const {data,error}=await sb.from('profiles').select('*').order('created_at',{ascending:false});S.adm.list=data||[];S.adm.err=error?error.message:'';if(S.view=='admin')draw()}
+async function admLoad(){const {data,error}=await sb.from('profiles').select('*').order('created_at',{ascending:false});S.adm.list=(data||[]).slice().sort((a,b)=>(new Date(b.last_seen||0))-(new Date(a.last_seen||0)));S.adm.err=error?error.message:'';if(S.view=='admin')draw()}
 async function admAct(id,action,ok){const u=(S.adm.list||[]).find(x=>x.id==id);if(!u)return;
 if(!ok&&action=='delete')return askC('Permanently delete '+u.email+'? Their login is removed and cannot be undone.',()=>admAct(id,action,true));
 if(!ok&&action=='suspend')return askC('Suspend '+u.email+'? They will be logged out and cannot log in until you resume.',()=>admAct(id,action,true),'Suspend','⚠️');
 S.adm.busy=id;draw();
 const {error}=await sb.functions.invoke('admin-users',{body:{action,user_id:id}});
 S.adm.busy=null;if(error){let m=error.message;if(error.name=='FunctionsFetchError')m='Cannot reach the admin function. Deploy it in Supabase as "admin-users".';else if(error.context&&error.context.json){try{const j=await error.context.json();if(j&&j.error)m=j.error}catch(e){}}toast('Failed: '+m)}else toast(action=='delete'?'Account deleted':action=='suspend'?'Account suspended':'Account resumed');admLoad()}
+const fdt=t=>t?new Date(t).toLocaleString([],{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+function agoH(t){if(!t)return '<span style="color:var(--mu)">Never</span>';const m=Math.max(0,Math.round((Date.now()-new Date(t))/60000));return m<5?'<b style="color:var(--ac)">● Online now</b>':m<60?'<b>'+m+' min ago</b>':m<1440?'<b>'+Math.floor(m/60)+' hr ago</b>':'<b>'+Math.floor(m/1440)+' days ago</b>'}
+setInterval(()=>{const o=document.getElementById('inv');if(S.view=='admin'&&S.adm&&!S.adm.busy&&!(o&&o.style.display=='flex'))admLoad()},60000);
 function admin(){if(!SBON||!S.prof||S.prof.role!=='admin')return '<h2>Admin</h2><div class="c">Owner access only.</div>';
-if(!S.adm){S.adm={list:null,busy:null,err:''};admLoad()}const A=S.adm,l=A.list||[],act=l.filter(u=>u.status=='active').length;
-return `<h2>Accounts</h2><div class="g"><div class="c"><small>Total accounts</small><h3>${l.length}</h3></div><div class="c"><small>Active</small><h3>${act}</h3></div><div class="c"><small>Suspended</small><h3 class="wn">${l.length-act}</h3></div></div>${A.err?`<p class="bad">${esc(A.err)}</p>`:''}<div class="r"><button class="s" style="flex:0 0 auto" onclick="S.adm=null;draw()">↻ Refresh</button></div><div class="c w"><table><tr><th>Email</th><th>Store / name</th><th>Signed up</th><th>Role</th><th>Status</th><th></th></tr>${A.list===null?'<tr><td colspan="6">Loading…</td></tr>':l.map(u=>{const me=u.id==S.prof.id,b=A.busy==u.id;return `<tr><td>${esc(u.email)}${me?' <span class="t">you</span>':''}</td><td>${esc(u.store_name||'—')}</td><td>${new Date(u.created_at).toLocaleDateString()}</td><td>${u.role}</td><td class="${u.status=='active'?'':'wn'}"><b>${u.status=='active'?'Active':'Suspended'}</b></td><td>${me?'—':u.status=='active'?`<button class="s" ${b?'disabled':''} onclick="admAct('${u.id}','suspend')">Suspend</button>`:`<button class="s" ${b?'disabled':''} onclick="admAct('${u.id}','resume')">Resume</button>`}${me?'':` <button class="s bad" ${b?'disabled':''} onclick="admAct('${u.id}','delete')">Delete</button>`}</td></tr>`}).join('')||'<tr><td colspan="6">No accounts yet</td></tr>'}</table></div><small style="color:var(--mu)">Only the account with role "admin" in Supabase can see this page. Suspend/resume/delete run on the server, not in the browser.</small>`}
+if(!S.adm){S.adm={list:null,busy:null,err:''};admLoad()}const A=S.adm,l=A.list||[],act=l.filter(u=>u.status=='active').length,onl=l.filter(u=>u.last_seen&&Date.now()-new Date(u.last_seen)<300000).length;
+return `<h2>Accounts</h2><div class="g"><div class="c"><small>Total accounts</small><h3>${l.length}</h3></div><div class="c"><small>Active</small><h3>${act}</h3></div><div class="c"><small>Suspended</small><h3 class="wn">${l.length-act}</h3></div><div class="c"><small>Online now</small><h3 style="color:var(--ac)">${onl}</h3></div></div>${A.err?`<p class="bad">${esc(A.err)}</p>`:''}<div class="r"><button class="s" style="flex:0 0 auto" onclick="S.adm=null;draw()">↻ Refresh</button></div><div class="c w"><table><tr><th>Email</th><th>Store / name</th><th>Last active</th><th>Last login</th><th>Signed up</th><th>Role</th><th>Status</th><th></th></tr>${A.list===null?'<tr><td colspan="8">Loading…</td></tr>':l.map(u=>{const me=u.id==S.prof.id,b=A.busy==u.id;return `<tr><td>${esc(u.email)}${me?' <span class="t">you</span>':''}</td><td>${esc(u.store_name||'—')}</td><td>${agoH(u.last_seen)}${u.last_seen?'<br><small style="color:var(--mu)">'+fdt(u.last_seen)+'</small>':''}</td><td>${fdt(u.last_login)}</td><td>${new Date(u.created_at).toLocaleDateString()}</td><td>${u.role}</td><td class="${u.status=='active'?'':'wn'}"><b>${u.status=='active'?'Active':'Suspended'}</b></td><td>${me?'—':u.status=='active'?`<button class="s" ${b?'disabled':''} onclick="admAct('${u.id}','suspend')">Suspend</button>`:`<button class="s" ${b?'disabled':''} onclick="admAct('${u.id}','resume')">Resume</button>`}${me?'':` <button class="s bad" ${b?'disabled':''} onclick="admAct('${u.id}','delete')">Delete</button>`}</td></tr>`}).join('')||'<tr><td colspan="8">No accounts yet</td></tr>'}</table></div><small style="color:var(--mu)">Only the account with role "admin" in Supabase can see this page. Suspend/resume/delete run on the server, not in the browser.</small>`}
 
 function go(v){S.menu=false;if(S.view=='inventory'&&v!='inventory')stopCam();if(LOCKED.includes(v)){checkPin(()=>{S.view=v;draw()});return}S.view=v;draw()}
 function draw(){
