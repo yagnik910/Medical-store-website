@@ -26,7 +26,7 @@ const save=()=>{if(SBON){if(S.prof)cloudSave();return}try{localStorage.setItem('
 const WAI='<svg viewBox="0 0 24 24" width="18" height="18" fill="#25D366" style="vertical-align:middle"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.61-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.22 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.69.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35zM12.04 21.5h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88zM20.52 3.45A11.8 11.8 0 0 0 12.04 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89 0-3.18-1.24-6.16-3.42-8.46z"/></svg>';
 const $=id=>document.getElementById(id),inr=n=>'₹'+n.toFixed(2);
 const toast=t=>{const e=$('toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',2200)};
-const tabs=[['dashboard','Dashboard'],['inventory','Inventory'],['billing','Sell',[['sreturn','Sell Return']]],['bills','Bills'],['purchase','Purchase',[['purchase','New Purchase'],['preturn','Purchase Return'],['reorder','Reorder']]],['suppliers','Suppliers'],['expcn','Expiry CN'],['expiry','Expiry'],['register','Drug Register'],['stockrep','Stock Reports'],['customers','Customers'],['margin','Margin'],['reports','Reports'],['settings','Settings']];
+const tabs=[['dashboard','Dashboard'],['analytics','Analytics & Billing'],['inventory','Inventory'],['billing','Sell',[['sreturn','Sell Return']]],['bills','Bills'],['purchase','Purchase',[['purchase','New Purchase'],['preturn','Purchase Return'],['reorder','Reorder']]],['suppliers','Suppliers'],['expcn','Expiry CN'],['expiry','Expiry'],['register','Drug Register'],['stockrep','Stock Reports'],['customers','Customers'],['margin','Margin'],['reports','Reports'],['settings','Settings']];
 
 // ===== Menu with hover submenus =====
 const inView=t=>S.view==t[0]||(t[2]||[]).some(c=>c[0]==S.view);
@@ -54,7 +54,7 @@ const {jsPDF}=window.jspdf,doc=new jsPDF({unit:'pt',format:'a4'}),s=d.s,st=d.sto
 doc.setFont('helvetica','bold').setFontSize(18).text(st.name||'Invoice',W/2,50,{align:'center'});doc.setFont('helvetica','normal').setFontSize(9);let y=66;
 [st.addr||'',[st.gstin?'GSTIN '+st.gstin:'',st.dl?'DL '+st.dl:''].filter(Boolean).join('   ')].filter(Boolean).forEach(t=>{doc.text(t,W/2,y,{align:'center'});y+=13});
 y+=10;doc.setFontSize(11).text('Invoice: '+s.inv,40,y);doc.text((s.date||'')+' '+(s.time||''),W-40,y,{align:'right'});y+=16;doc.text('Customer: '+s.cust,40,y);
-doc.autoTable({startY:y+12,head:[['#','Item','Batch','Qty','MRP','Disc','Amount']],body:s.items.map((i,x)=>[x+1,i.n,i.b||'',i.k,pp(i).toFixed(2),i.dp+'%',(pp(i)*i.k*(1-i.dp/100)).toFixed(2)]),styles:{fontSize:9},headStyles:{fillColor:[59,115,201]},columnStyles:{4:{halign:'right'},6:{halign:'right'}}});
+doc.autoTable({startY:y+12,head:[['#','Item','Batch','Qty','MRP','Disc','Amount']],body:s.items.map((i,x)=>[x+1,i.n,i.b||'',i.k,pp(i).toFixed(2),i.dp+'%',(pp(i)*i.k*(1-i.dp/100)).toFixed(2)]),styles:{fontSize:9},headStyles:{fillColor:[15,157,107]},columnStyles:{4:{halign:'right'},6:{halign:'right'}}});
 let yy=doc.lastAutoTable.finalY+20;const L=[['Subtotal (MRP)',R(s.sub)],['Discounts','-'+R(s.ld+s.bd)]];
 if(s.gst>0)L.push(['Taxable amount',R(s.tx)],['GST'+(s.pct?' @ '+s.pct+'%':''),R(s.gst)]);L.push(['Round off',R(s.ro)],['Grand total',R(s.tot)],['Paid by',s.mode]);if(s.due>0)L.push(['Balance due',R(s.due)]);
 L.forEach(([a,b])=>{const g=a=='Grand total';doc.setFont('helvetica',g?'bold':'normal').setFontSize(g?12:10);doc.text(a,W-200,yy);doc.text(b,W-40,yy,{align:'right'});yy+=16});
@@ -192,10 +192,11 @@ return `<h2>Accounts</h2><div class="g"><div class="c"><small>Total accounts</sm
 function go(v){S.menu=false;if(S.view=='inventory'&&v!='inventory')stopCam();if(LOCKED.includes(v)){checkPin(()=>{S.view=v;draw()});return}S.view=v;draw()}
 function draw(){
 if(!S.user){$('app').innerHTML=loginH();return}
-const V={admin,dashboard,inventory,billing,bills,sreturn,purchase,preturn,expcn,expiry,register,stockrep,reorder,suppliers,customers,margin,reports,settings}[S.view]||dashboard;
-const T=(S.prof&&S.prof.role=='admin')?[...tabs,['admin','Admin']]:tabs,om=document.querySelector('.mn'),sl=om?om.scrollLeft:0;$('app').innerHTML=`<nav><b class="brand">${LOGO(30)}<span>MediOS</span></b><button class="nb hb" aria-label="Menu" onclick="S.menu=!S.menu;draw()">${S.menu?'✕':'☰'}</button><div class="mn ${S.menu?'open':''}">${navH(T)}<button class="nb lo" onclick="toggleTheme()" title="Light / dark" style="margin-left:auto">${document.documentElement.getAttribute('data-theme')=='dark'?'☀️':'🌙'}</button><button class="nb" onclick="logout()">Logout</button></div></nav><main>${V()}</main>`;{const nm=document.querySelector('.mn');if(nm){nm.scrollLeft=sl;const a=nm.querySelector('.nb.on');if(a&&a.scrollIntoView&&getComputedStyle(nm).flexDirection=='row')a.scrollIntoView({block:'nearest',inline:'nearest'})}}if($('pv'))pv();animMain()}
+const V={admin,dashboard,analytics,inventory,billing,bills,sreturn,purchase,preturn,expcn,expiry,register,stockrep,reorder,suppliers,customers,margin,reports,settings}[S.view]||dashboard;
+const T=(S.prof&&S.prof.role=='admin')?[...tabs,['admin','Admin']]:tabs,om=document.querySelector('.mn'),sl=om?om.scrollLeft:0;$('app').innerHTML=`<nav><b class="brand">${LOGO(30)}<span>MediOS</span></b><button class="nb hb" aria-label="Menu" onclick="S.menu=!S.menu;draw()">${S.menu?'✕':'☰'}</button><div class="mn ${S.menu?'open':''}">${navH(T)}<button class="nb lo" onclick="logout()">Logout</button></div></nav><main>${V()}</main>`;{const nm=document.querySelector('.mn');if(nm){nm.scrollLeft=sl;const a=nm.querySelector('.nb.on');if(a&&a.scrollIntoView&&getComputedStyle(nm).flexDirection=='row')a.scrollIntoView({block:'nearest',inline:'nearest'})}}if($('pv'))pv();animMain()}
 const low=()=>S.meds.filter(isLow),exp=n=>S.meds.filter(m=>days(m.e)<=n);
 const today=()=>S.sales.filter(s=>!s.date||s.date==D(0)).reduce((a,s)=>a+s.t,0)-S.sret.filter(r=>r.date==D(0)).reduce((a,r)=>a+r.amt,0);
+function dashboard(){const ex=exp(60),dl=STORE.dle?days(STORE.dle):null;return `<h2>Good day, ${esc((S.prof&&S.prof.store_name)||S.user.split('@')[0])}</h2>${dl!==null&&dl<=60?`<div class="c" style="border-color:var(--bad);margin-bottom:12px"><b class="bad">Drug licence ${dl<0?'has expired':'expires in '+dl+' days'} (${STORE.dle}).</b> Renew it in time.</div>`:''}<div class="g"><div class="c"><small>Today's sales</small><h3>${inr(today())}</h3></div><div class="c"><small>Medicines</small><h3>${S.meds.length}</h3></div><div class="c"><small>Low stock</small><h3 class="wn">${low().length}</h3></div><div class="c"><small>Customer dues</small><h3 class="wn">${inr(recv())}</h3></div><div class="c"><small>Expiring in less than 60 days</small><h3 class="bad">${ex.length}</h3></div></div><div class="two"><div class="c"><b>Low stock</b>${low().map(m=>`<p>${m.n} <span class="t wn">${fmtQ(m)} left</span></p>`).join('')||'<p>All good</p>'}</div><div class="c"><b>Expiring soon</b>${ex.map(m=>`<p>${m.n} <span class="t bad">${days(m.e)<0?'expired':days(m.e)+' days'}</span></p>`).join('')||'<p>None</p>'}</div></div>`}
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 function ed(id){S.editId=id;draw();$('an').scrollIntoView({behavior:'smooth',block:'center'})}
 function askC(msg,yes,label,icon){const old=document.getElementById('cfm');if(old)old.remove();label=label||'Delete';const o=document.createElement('div');o.id='cfm';o.className='ov';o.style.cssText='align-items:center;z-index:20';
@@ -226,7 +227,7 @@ return `<b>Bill summary</b><table><tr><td>Items</td><td>${S.cart.length} (${n} u
 <div class="big">${inr(t.tot)}</div><small>Payment mode</small><div class="r" style="margin:6px 0">${['Cash','UPI','Card','Credit'].map(m=>`<button class="${B.mode==m?'p':'s'}" onclick="S.bill.mode='${m}';$('sm').innerHTML=smH()">${m}</button>`).join('')}</div>
 ${B.mode=='Credit'?`<p class="wn" style="margin:0 0 8px">Credit sale: this amount is added to ${esc(B.cust)||'the customer'}'s dues. Customer name is required.</p>`:''}${B.mode=='Cash'?`<div class="r"><input type="number" placeholder="Cash received" value="${esc(B.recv)}" oninput="S.bill.recv=this.value;$('chg').textContent=chg()"></div><p style="margin:0 0 8px">Change: <b id="chg">${chg()}</b></p>`:''}
 ${rx?`<div class="c" style="border-color:var(--wn);margin-bottom:10px"><b class="wn">Prescription required</b><div class="r" style="margin:8px 0"><input placeholder="Doctor name" value="${esc(B.doc)}" oninput="S.bill.doc=this.value"><input placeholder="Doctor reg. no." value="${esc(B.reg)}" oninput="S.bill.reg=this.value"></div>${rg?`<div class="r"><input placeholder="Patient name" value="${esc(B.pt)}" oninput="S.bill.pt=this.value"><input placeholder="Patient address" value="${esc(B.pa)}" oninput="S.bill.pa=this.value"></div><small class="wn">Schedule H1/X: doctor, reg. no., patient name and address are required.</small><br>`:''}${xx?`<label><input type="checkbox" style="width:auto" ${B.xdup?'checked':''} onchange="S.bill.xdup=this.checked"> Duplicate prescription retained</label><br>`:''}<label><input type="checkbox" style="width:auto" ${B.rxok?'checked':''} onchange="S.bill.rxok=this.checked"> Prescription verified</label></div>`:''}
-<div style="text-align:center"><span class="stamp ${B.mode=='Credit'?'due':''}">${B.mode=='Credit'?'ON CREDIT':'PAY BY '+B.mode.toUpperCase()}</span></div><div class="r"><button class="p ok" ${S.cart.length?'':'disabled'} onclick="pay()">Complete sale</button></div><div class="r"><button class="s" onclick="hold()">Hold bill</button><button class="s" onclick="clr()">Clear</button></div>`}
+<div class="r"><button class="p" ${S.cart.length?'':'disabled'} onclick="pay()">Complete sale</button></div><div class="r"><button class="s" onclick="hold()">Hold bill</button><button class="s" onclick="clr()">Clear</button></div>`}
 function stp(n,t,x,body){return `<div class="c stp"><div class="sh"><span class="sn">${n}</span><b>${t}</b>${x||''}</div>${body}</div>`}
 function billing(){const B=S.bill;
 return `<h2>New bill</h2>${S.held.length?`<div class="r">${S.held.map((h,i)=>`<button class="s" onclick="resume(${i})">▶ Held ${h.time} · ${esc(h.bill.cust)||'Walk-in'} · ${h.cart.length} items</button>`).join('')}</div>`:''}
@@ -251,7 +252,7 @@ S.sales.push(s);S.cart=[];S.bill=nb();save();draw();showInv(s)}
 function showInv(x){const s=typeof x=='object'?x:S.sales.find(y=>y.no==x);if(!s)return;let o=document.getElementById('inv');if(!o){o=document.createElement('div');o.id='inv';o.className='ov';document.body.appendChild(o)}o.style.display='flex';
 o.innerHTML=`<div class="iv"><div><div style="text-align:center"><b style="font-size:18px">${STORE.name}</b><br><small>${STORE.addr}${STORE.gstin?' · GSTIN '+STORE.gstin:''}${STORE.dl?' · DL '+STORE.dl:''}</small></div><hr><div style="display:flex;justify-content:space-between;flex-wrap:wrap"><span>Invoice <b>${s.inv}</b></span><span>${s.date} ${s.time}</span></div><div>Customer: ${esc(s.cust)}${s.ph?' ('+esc(s.ph)+')':''}${s.doc?'<br>Doctor: '+esc(s.doc)+(s.reg?' (Reg. '+esc(s.reg)+')':''):''}${s.pa?'<br>Patient: '+esc(s.pt||s.cust)+', '+esc(s.pa):''}</div>
 <div class="w"><table><tr><th>Item</th><th>Batch</th><th>Qty</th><th>MRP</th><th>Disc</th><th>Amount</th></tr>${s.items.map(i=>`<tr><td>${i.n}</td><td>${i.b}</td><td>${i.k}</td><td>${pp(i).toFixed(2)}</td><td>${i.dp}%</td><td>${(pp(i)*i.k*(1-i.dp/100)).toFixed(2)}</td></tr>`).join('')}</table></div>
-<table style="margin-left:auto;width:auto"><tr><td>Subtotal (MRP)</td><td>${inr(s.sub)}</td></tr><tr><td>Discounts</td><td>−${inr(s.ld+s.bd)}</td></tr>${(()=>{if(s.cg===undefined)return s.gst?`<tr><td>GST${s.gi===false?'':' (incl.)'}</td><td>${inr(s.gst)}</td></tr>`:'';const r=(+s.rc||0)+(+s.rs||0)+(+s.ri||0);return `<tr><td>Taxable amount</td><td>${inr(s.tx)}</td></tr>`+(r>0?`<tr><td>GST @ ${+r.toFixed(2)}%</td><td>${inr(s.gst)}</td></tr>`:'')})()}<tr><td>Round off</td><td>${inr(s.ro)}</td></tr><tr><td><b>Grand total</b></td><td><b>${inr(s.tot)}</b></td></tr><tr><td>Paid by</td><td>${s.mode}</td></tr></table><div style="text-align:center"><span class="stamp ${s.mode=='Credit'?'due':''}">${s.mode=='Credit'?'ON CREDIT':'PAID'}</span></div><small>${s.cg!==undefined||s.gi===false?'GST is added to the listed prices.':'MRP is inclusive of all taxes.'} Goods once sold will not be taken back.</small>${s.edited?'<br><small>Edited on '+s.edited+'</small>':''}</div>
+<table style="margin-left:auto;width:auto"><tr><td>Subtotal (MRP)</td><td>${inr(s.sub)}</td></tr><tr><td>Discounts</td><td>−${inr(s.ld+s.bd)}</td></tr>${(()=>{if(s.cg===undefined)return s.gst?`<tr><td>GST${s.gi===false?'':' (incl.)'}</td><td>${inr(s.gst)}</td></tr>`:'';const r=(+s.rc||0)+(+s.rs||0)+(+s.ri||0);return `<tr><td>Taxable amount</td><td>${inr(s.tx)}</td></tr>`+(r>0?`<tr><td>GST @ ${+r.toFixed(2)}%</td><td>${inr(s.gst)}</td></tr>`:'')})()}<tr><td>Round off</td><td>${inr(s.ro)}</td></tr><tr><td><b>Grand total</b></td><td><b>${inr(s.tot)}</b></td></tr><tr><td>Paid by</td><td>${s.mode}</td></tr></table><small>${s.cg!==undefined||s.gi===false?'GST is added to the listed prices.':'MRP is inclusive of all taxes.'} Goods once sold will not be taken back.</small>${s.edited?'<br><small>Edited on '+s.edited+'</small>':''}</div>
 <div class="r np" style="margin:14px 0 0"><button class="p" onclick="window.print()">Print</button><button class="s" onclick="dlInvPdf(${s.no})">⬇ PDF</button><button class="s" onclick="waBill(${s.no})">${WAI} WhatsApp</button><button class="s" onclick="editInv(${s.no})">✎ Edit bill</button><button class="s" onclick="$('inv').style.display='none'">Close</button></div></div>`}
 
 const mfind=(n,b)=>S.meds.find(m=>m.n.toLowerCase()==n.toLowerCase()&&(m.b||'').toLowerCase()==(b||'').toLowerCase());
@@ -729,54 +730,6 @@ let sTx=0,sCg=0,sSg=0,sIg=0;ent.forEach(([h,o])=>{ws.addRow({h,q:o.qty,tx:+o.tax
 const tr=ws.addRow({h:'Total',tx:+sTx.toFixed(2),cg:+sCg.toFixed(2),sg:+sSg.toFixed(2),ig:+sIg.toFixed(2),gst:+(sCg+sSg+sIg).toFixed(2)});tr.font={bold:true};tr.eachCell(c=>c.border={top:{style:'thin'}});
 styleHead(ws,7);await saveWB(wb,'HSN-summary-'+ym+'.xlsx');toast('Downloaded HSN summary')}
 
-// ===== NEW DASHBOARD =====
-// ===== Dashboard charts (plain SVG, no chart library) =====
-const fk=n=>{n=Math.round(n);const a=Math.abs(n);return a>=1e5?(+(n/1e5).toFixed(a>=1e6?0:1))+'L':a>=1e3?(+(n/1e3).toFixed(a>=1e4?0:1))+'k':String(n)};
-function nice(v){if(v<=0)return 100;const t=v/4,p=Math.pow(10,Math.floor(Math.log10(t))),n=t/p;return(n<=1?1:n<=2?2:n<=5?5:10)*p*4}
-const CC=['var(--c1)','var(--c2)','var(--c3)','var(--c4)'];
-function legendH(names,cols){return `<div class="lgd">${names.map((n,i)=>`<span><i style="background:${cols[i]}"></i>${n}</span>`).join('')}</div>`}
-function barsSvg(labels,series,cols){const W=640,H=290,L=42,R=10,T=26,B=32,mx=nice(Math.max(1,...series.flatMap(s=>s.v))),iw=W-L-R,ih=H-T-B,gw=iw/labels.length,bw=Math.min(24,gw/(series.length+.8));let o=`<svg class="chs" viewBox="0 0 ${W} ${H}" role="img" aria-label="Bar chart">`;
-for(let i=0;i<=4;i++){const y=T+ih-ih*i/4;o+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${y}" y2="${y}"/><text x="${L-6}" y="${y+4}" text-anchor="end">${fk(mx*i/4)}</text>`}
-labels.forEach((lb,j)=>{const x0=L+gw*j+(gw-bw*series.length)/2;series.forEach((s,k)=>{const v=s.v[j],h=ih*v/mx,x=x0+bw*k;o+=`<rect class="bb" x="${x.toFixed(1)}" y="${(T+ih-h).toFixed(1)}" width="${(bw-2).toFixed(1)}" height="${Math.max(h,v>0?2:0).toFixed(1)}" rx="3" fill="${cols[k]}" style="animation-delay:${k*70+j*40}ms"/>`;if(v>0)o+=`<text class="vl" x="${(x+(bw-2)/2).toFixed(1)}" y="${(T+ih-h-4).toFixed(1)}" text-anchor="middle" style="fill:${cols[k]}">${fk(v)}</text>`});o+=`<text x="${L+gw*j+gw/2}" y="${H-10}" text-anchor="middle">${lb}</text>`});
-return o+'</svg>'}
-function lineSvg(labels,series,cols,id){const W=640,H=250,L=42,R=16,T=24,B=34,n=labels.length,mx=nice(Math.max(1,...series.flatMap(s=>s.v))),iw=W-L-R,ih=H-T-B,X=j=>L+(n>1?iw*j/(n-1):iw/2),Y=v=>T+ih-ih*v/mx;let o=`<svg class="chs" viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart"><defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${cols[0]}" stop-opacity=".28"/><stop offset="1" stop-color="${cols[0]}" stop-opacity="0"/></linearGradient></defs>`;
-for(let i=0;i<=4;i++){const y=T+ih-ih*i/4;o+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${y}" y2="${y}"/><text x="${L-6}" y="${y+4}" text-anchor="end">${fk(mx*i/4)}</text>`}
-const step=Math.max(1,Math.ceil(n/7));labels.forEach((lb,j)=>{if(j%step===0||j==n-1)o+=`<text x="${X(j).toFixed(1)}" y="${H-10}" text-anchor="middle">${lb}</text>`});
-const a=series[0].v;o+=`<path d="M${X(0).toFixed(1)},${T+ih} ${a.map((v,j)=>'L'+X(j).toFixed(1)+','+Y(v).toFixed(1)).join(' ')} L${X(n-1).toFixed(1)},${T+ih}Z" fill="url(#${id})"/>`;
-series.forEach((s,k)=>{o+=`<polyline class="ln" fill="none" stroke="${cols[k]}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" points="${s.v.map((v,j)=>X(j).toFixed(1)+','+Y(v).toFixed(1)).join(' ')}"/>`;if(n<=31)s.v.forEach((v,j)=>{o+=`<circle cx="${X(j).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.6" fill="var(--cd)" stroke="${cols[k]}" stroke-width="2"/>`})});
-const pk=a.indexOf(Math.max(...a));if(a[pk]>0){const x=X(pk),y=Y(a[pk]),tx=Math.min(Math.max(x,L+30),W-R-30),t=fk(a[pk]);o+=`<line x1="${x}" x2="${x}" y1="${y}" y2="${T+ih}" stroke="${cols[0]}" stroke-dasharray="3 3" opacity=".5"/><circle cx="${x}" cy="${y}" r="5" fill="var(--cd)" stroke="${cols[0]}" stroke-width="2.4"/><rect x="${tx-26}" y="${Math.max(2,y-30)}" width="52" height="20" rx="6" fill="var(--cd)" stroke="var(--ok)"/><text class="vl" x="${tx}" y="${Math.max(2,y-30)+14}" text-anchor="middle" style="fill:var(--ok)">${t}</text>`}
-return o+'</svg>'}
-function donutSvg(parts,cTop,cSub){const tot=parts.reduce((a,p)=>a+p.n,0)||1,R=62,C=2*Math.PI*R;let off=0,o=`<svg viewBox="0 0 160 160" role="img" aria-label="Donut chart"><circle cx="80" cy="80" r="${R}" fill="none" stroke="var(--soft)" stroke-width="24"/>`;
-parts.forEach(p=>{const l=C*p.n/tot;if(p.n>0)o+=`<circle class="ds" cx="80" cy="80" r="${R}" fill="none" stroke="${p.c}" stroke-width="24" stroke-dasharray="${l.toFixed(2)} ${(C-l).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 80 80)"/>`;off+=l});
-return o+`<text x="80" y="82" text-anchor="middle" style="font-size:30px;font-weight:800;fill:var(--tx)">${cTop}</text><text x="80" y="100" text-anchor="middle" style="font-size:10px;fill:var(--mu)">${cSub}</text></svg>`}
-function dashSeries(N,cnt){const ds=[...Array(N)].map((_,i)=>D(-(N-1-i))),ix={};ds.forEach((d,i)=>ix[d]=i);const sa=Array(N).fill(0),pu=Array(N).fill(0);
-S.sales.forEach(s=>{const i=ix[s.date||D(0)];if(i!=null)sa[i]+=cnt?1:s.t});if(!cnt)S.sret.forEach(r=>{const i=ix[r.date];if(i!=null)sa[i]-=r.amt});S.purch.forEach(p=>{const i=ix[p.date];if(i!=null)pu[i]+=cnt?1:p.tot});
-return{labels:ds.map(d=>d.slice(8)+'/'+d.slice(5,7)),sa:sa.map(v=>Math.max(0,Math.round(v))),pu:pu.map(v=>Math.round(v))}}
-function dashMonths(cnt){const ks=[],lb=[];for(let m=5;m>=0;m--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-m);ks.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));lb.push(d.toLocaleDateString([],{month:'short'}))}
-const z=()=>Array(6).fill(0),sa=z(),pu=z(),sr=z(),pr=z(),add=(a,d,v)=>{const i=ks.indexOf((d||D(0)).slice(0,7));if(i>=0)a[i]+=cnt?1:v};
-S.sales.forEach(s=>add(sa,s.date,s.t));S.purch.forEach(p=>add(pu,p.date,p.tot));S.sret.forEach(r=>add(sr,r.date,r.amt));S.pret.forEach(r=>add(pr,r.date,r.tot));
-return{labels:lb,series:[sa,pu,sr,pr].map(a=>({v:a.map(Math.round)}))}}
-function kpi(ic,lb,v,k,go2,cls){return `<div class="c kp" style="--k:${k}" onclick="go('${go2}')"><span class="ki">${ic}</span><div><small>${lb}</small><h3 class="${cls||''}">${v}</h3></div></div>`}
-function dashTop(){const N={7:1,30:1,90:1},P=S.dp||'30',byQty={};S.sales.filter(s=>(s.date||D(0))>=D(-(+P-1))).forEach(s=>(s.items||[]).forEach(i=>{const o=byQty[i.n]||(byQty[i.n]={n:i.n,u:0,a:0});o.u+=un(i);o.a+=pp(i)*i.k*(1-i.dp/100)}));
-return Object.values(byQty).sort((a,b)=>b.a-a.a).slice(0,6).map(o=>({...o,st:S.meds.filter(m=>m.n==o.n).reduce((a,m)=>a+m.q,0)}))}
-function dashboard(){const ex=exp(60),dl=STORE.dle?days(STORE.dle):null,P=S.dp||'30',cnt=(S.dv||'amt')=='cnt',sc=!S.pin||S.unlocked,N=+P;
-const sr=dashSeries(N,cnt),mo=dashMonths(cnt),has=a=>a.some(v=>v>0),u=cnt?' bills':'';
-const nm=['Sales','Purchases','Sell returns','Purchase returns'];
-const hp={ex:S.meds.filter(m=>days(m.e)<0).length,ep:S.meds.filter(m=>days(m.e)>=0&&days(m.e)<=60).length,lw:S.meds.filter(m=>days(m.e)>60&&isLow(m)).length};hp.ok=Math.max(0,S.meds.length-hp.ex-hp.ep-hp.lw);
-const pc=S.meds.length?Math.round(hp.ok/S.meds.length*100):0,parts=[{n:hp.ok,c:'var(--c4)',l:'Healthy'},{n:hp.lw,c:'var(--c3)',l:'Low stock'},{n:hp.ep,c:'var(--c2)',l:'Expiring ≤ 60 days'},{n:hp.ex,c:'#8e2b2b',l:'Expired'}];
-const vc=S.meds.reduce((a,m)=>a+(m.pr||m.m)*m.q/(m.ps||1),0),vm=S.meds.reduce((a,m)=>a+m.m*m.q/(m.ps||1),0),top=dashTop(),seg=(k,v,l)=>`<button class="${(S[k]||(k=='dp'?'30':'amt'))==v?'on':''}" onclick="S.${k}='${v}';draw()">${l}</button>`;
-return `<h2>Good day, ${esc((S.prof&&S.prof.store_name)||S.user.split('@')[0])}</h2>${dl!==null&&dl<=60?`<div class="c" style="border-color:var(--bad);margin-bottom:12px"><b class="bad">Drug licence ${dl<0?'has expired':'expires in '+dl+' days'} (${STORE.dle}).</b> Renew it in time.</div>`:''}
-<div class="two"><div class="c"><b>Period</b><div style="margin-top:8px"><select onchange="S.dp=this.value;draw()"><option value="7" ${P=='7'?'selected':''}>Last 7 days</option><option value="30" ${P=='30'?'selected':''}>Last 30 days</option><option value="90" ${P=='90'?'selected':''}>Last 90 days</option></select></div></div>
-<div class="c"><b>Show charts as</b><div style="margin-top:8px"><div class="seg">${seg('dv','amt','Amount ₹')}${seg('dv','cnt','Bills')}</div></div></div></div>
-<div class="g">${kpi('💰',"Today's sales",inr(today()),'#3b73c9','billing')}${kpi('💊','Medicines',S.meds.length,'#5bb15d','inventory')}${kpi('📉','Low stock',low().length,'#f0b93a','reorder','wn')}${kpi('👥','Customer dues',inr(recv()),'#e0614f','customers','wn')}${kpi('⏳','Expiring in less than 60 days',ex.length,'#dc3f3f','expiry','bad')}</div>
-<div class="c" style="margin-bottom:12px"><div class="chh"><b>Sales, purchases &amp; returns · last 6 months</b>${legendH(nm,CC)}</div>${mo.series.some(s=>has(s.v))?barsSvg(mo.labels,mo.series,CC):'<div class="empty">No data yet. Complete a sale or a purchase and this chart fills in.</div>'}</div>
-<div class="c" style="margin-bottom:12px"><div class="chh"><b>${cnt?'Bills':'Sales'} trend · last ${P} days</b>${legendH([cnt?'Sales bills':'Sales',cnt?'Purchase bills':'Purchases'],[CC[0],CC[3]])}</div>${has(sr.sa)||has(sr.pu)?lineSvg(sr.labels,[{v:sr.sa},{v:sr.pu}],[CC[0],CC[3]],'ga'):'<div class="empty">No sales or purchases in this period.</div>'}</div>
-<div class="two"><div class="c"><b>Stock health</b><div class="dn">${donutSvg(parts,pc+'%','healthy')}<div>${parts.map(p=>`<div class="vrow"><span><i class="dot" style="background:${p.c}"></i>${p.l}</span><b>${p.n}</b></div>`).join('')}</div></div></div>
-<div class="c"><b>Inventory value</b><div class="strip"><span>Live inventory</span><button class="p" style="padding:6px 12px" onclick="go('stockrep')">Details ›</button></div>${sc?`<div class="vrow"><span>Stock at cost</span><b>${inr(vc)}</b></div><div class="vrow"><span>Stock at MRP</span><b>${inr(vm)}</b></div><div class="vrow"><span>Potential margin</span><b class="up">${inr(vm-vc)}</b></div>`:'<div class="vrow"><span>🔒 Enter the owner PIN (Settings) to see values</span></div>'}<div class="vrow"><span>Customer dues</span><b class="wn">${inr(recv())}</b></div></div></div>
-<div class="c w" style="margin-bottom:12px"><div class="chh"><b>Top selling medicines · last ${P} days</b><button class="s" onclick="go('reports')">All reports ›</button></div><table><tr><th>Medicine</th><th>Units sold</th><th>Revenue</th><th>Stock left</th></tr>${top.map(o=>`<tr><td>${esc(o.n)}</td><td>${o.u}</td><td class="up">${inr(o.a)}</td><td class="${o.st<=0?'bad':o.st<=10?'wn':''}">${o.st}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No sales in this period yet</td></tr>'}</table></div>
-<div class="two"><div class="c"><b>Low stock</b>${low().map(m=>`<p>${m.n} <span class="t wn">${fmtQ(m)} left</span></p>`).join('')||'<p>All good</p>'}</div><div class="c"><b>Expiring soon</b>${ex.map(m=>`<p>${m.n} <span class="t bad">${days(m.e)<0?'expired':days(m.e)+' days'}</span></p>`).join('')||'<p>None</p>'}</div></div>`}
-function toggleTheme(){const d=document.documentElement,n=d.getAttribute('data-theme')=='dark'?'light':'dark';d.setAttribute('data-theme',n);try{localStorage.setItem('medios_theme',n)}catch(e){}draw()}
-
 // ===== 3D scene, tilt and page transitions =====
 function init3D(sc){try{
 if(typeof THREE==='undefined'||matchMedia('(prefers-reduced-motion:reduce)').matches)return;
@@ -801,7 +754,7 @@ outer.rotation.z=.35;outer.add(hx);scn.add(outer);
 const rs=()=>{const w=innerWidth,h=innerHeight;R.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix();outer.position.set(Math.min(11,6.53*(w/h)*.78),0,-2)};rs();addEventListener('resize',rs);
 let mx=0,my=0;addEventListener('pointermove',e=>{mx=e.clientX/innerWidth-.5;my=e.clientY/innerHeight-.5});
 const clk=new THREE.Clock();
-(function loop(){requestAnimationFrame(loop);if(document.hidden||!document.body.classList.contains('lgn'))return;const t=clk.getElapsedTime();
+(function loop(){requestAnimationFrame(loop);if(document.hidden)return;const t=clk.getElapsedTime();
 items.forEach(o=>{const u=o.userData;o.rotation.x+=u.r.x;o.rotation.y+=u.r.y;o.rotation.z+=u.r.z;o.position.y=u.y+Math.sin(t*u.s+u.p)*.7});
 hx.rotation.y=t*.35;outer.position.y=Math.sin(t*.6)*.4;
 cam.position.x+=(mx*3-cam.position.x)*.04;cam.position.y+=(-my*2-Math.min(scrollY,1200)*.004-cam.position.y)*.04;cam.lookAt(0,0,0);R.render(scn,cam)})();
@@ -811,7 +764,7 @@ document.body.prepend(sc);init3D(sc);
 if(!matchMedia('(pointer:fine)').matches||matchMedia('(prefers-reduced-motion:reduce)').matches)return;
 let cur=null,raf=0;const reset=()=>{if(cur){cur.style.transform='';cur=null}};
 document.addEventListener('pointermove',e=>{const t=e.target.closest&&e.target.closest('.g>.c,.rc,.lg');if(cur&&cur!==t)reset();if(!t||t.closest('.ov'))return;cur=t;cancelAnimationFrame(raf);
-raf=requestAnimationFrame(()=>{const r=t.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5,a=t.classList.contains('lg')?3:4;t.style.transform=`perspective(700px) rotateX(${(-y*a).toFixed(2)}deg) rotateY(${(x*a).toFixed(2)}deg) translateZ(6px)`})});
+raf=requestAnimationFrame(()=>{const r=t.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5,a=t.classList.contains('lg')?3:7;t.style.transform=`perspective(700px) rotateX(${(-y*a).toFixed(2)}deg) rotateY(${(x*a).toFixed(2)}deg) translateZ(6px)`})});
 document.addEventListener('mouseleave',reset);})();
 function animMain(){document.body.classList.toggle('lgn',!S.user);const k=S.user?S.view:'login';if(k===S._av)return;S._av=k;
 const m=document.querySelector('main'),els=m?[...m.children]:[...document.querySelectorAll('#app>.lg')];
@@ -883,3 +836,382 @@ setTimeout(tick,100)};tick()}
 try{BarcodeDetectionAPI.setZXingModuleOverrides({locateFile:(p,pre)=>p.endsWith('.wasm')?'zxing_reader.wasm':pre+p})}catch(e){}
 setTimeout(()=>{try{BarcodeDetectionAPI.prepareZXingModule({fireImmediately:true})}catch(e){}},800);
 initAuth();
+
+// ===== SCREEN 1 & SCREEN 2: DYNAMIC ANALYTICS & BILLING PORTAL (INDIAN PHARMACY STANDARD) =====
+function analytics() {
+  if (!S.anaView) S.anaView = 'overview'; // 'overview' = Screen 1, 'billing' = Screen 2
+  if (!S.anaSubTab) S.anaSubTab = 'overview';
+
+  const topNav = `
+    <div class="portal-top-nav">
+      <button class="portal-pill ${S.anaView === 'overview' ? 'active' : ''}" onclick="S.anaView='overview';draw()">Overview Dashboard</button>
+      <button class="portal-pill" onclick="go('inventory')">Inventory</button>
+      <button class="portal-pill ${S.anaView === 'billing' ? 'active' : ''}" onclick="S.anaView='billing';draw()">Price Master &amp; Billing</button>
+      <button class="portal-pill" onclick="go('register')">Drug Register</button>
+    </div>
+  `;
+
+  return `
+    <div class="portal-wrap">
+      ${topNav}
+      ${S.anaView === 'overview' ? renderScreen1() : renderScreen2()}
+    </div>
+  `;
+}
+
+function renderScreen1() {
+  const stockVal = S.meds.reduce((a, m) => a + (m.pr || m.m) * m.q, 0);
+  const paidSales = S.sales.filter(s => s.mode !== 'Credit').reduce((a, s) => a + s.tot, 0);
+  const creditDues = recv();
+  const lowCount = S.meds.filter(isLow).length;
+
+  return `
+    <!-- Top Row: Counter Selector & GST Invoice Action -->
+    <div class="portal-grid-2">
+      <div class="portal-card">
+        <label style="display:block; font-size:13px; font-weight:700; color:#1e293b; margin-bottom:6px">Store Counter / Branch</label>
+        <select class="portal-select" onchange="toast('Switched to: ' + this.value)">
+          <option>Main Counter (Retail POS)</option>
+          <option>Jan Aushadhi &amp; Generics Counter</option>
+          <option>Wholesale &amp; Institutional Supply</option>
+          <option>Cold-Storage &amp; Insulin Rack</option>
+        </select>
+      </div>
+      <div class="portal-card" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <span style="font-weight:700; font-size:14px; color:#1e293b">GST Invoicing ⓘ</span>
+          <div style="font-size:12px; color:#64748b">Compliant with Form 20/21 DL rules</div>
+        </div>
+        <div class="portal-btn-row">
+          <button class="portal-btn-outline" onclick="go('bills')">View Bills</button>
+          <button class="portal-btn-primary" onclick="S.anaView='billing';draw()">Quick POS ▾</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Medicine Stocks (Grouped Bar Chart) -->
+    <div class="portal-card">
+      <div class="portal-card-header">
+        <h3>Live Medicine Stocks (Units in Packs)</h3>
+        <div class="portal-legend-row">
+          <span class="portal-legend-item"><i class="portal-legend-dot" style="background:#3b82f6"></i> In Stock</span>
+          <span class="portal-legend-item"><i class="portal-legend-dot" style="background:#ef4444"></i> Low Stock</span>
+          <span class="portal-legend-item"><i class="portal-legend-dot" style="background:#10b981"></i> Reordered</span>
+          <button class="portal-icon-btn" title="Manage Inventory" onclick="go('inventory')">✎</button>
+        </div>
+      </div>
+      <div class="portal-chart-area">
+        <div class="portal-y-axis">
+          <span>1000</span>
+          <span>800</span>
+          <span>400</span>
+          <span>200</span>
+          <span>0</span>
+        </div>
+        <div class="portal-bars-wrap">
+          <div class="portal-bar-group">
+            <div class="portal-bars-cluster">
+              <div class="portal-bar b-blue" style="height:60px"><span class="portal-bar-val">600</span></div>
+              <div class="portal-bar b-red" style="height:76px"><span class="portal-bar-val">760</span></div>
+              <div class="portal-bar b-green" style="height:25px"><span class="portal-bar-val">75</span></div>
+              <div class="portal-bar b-yellow" style="height:15px"><span class="portal-bar-val">50</span></div>
+            </div>
+            <span class="portal-bar-label">Analgesics</span>
+          </div>
+
+          <div class="portal-bar-group">
+            <div class="portal-bars-cluster">
+              <div class="portal-bar b-blue" style="height:113px"><span class="portal-bar-val">1130</span></div>
+              <div class="portal-bar b-yellow" style="height:75px"><span class="portal-bar-val">750</span></div>
+              <div class="portal-bar b-green" style="height:36px"><span class="portal-bar-val">360</span></div>
+            </div>
+            <span class="portal-bar-label">Antibiotics</span>
+          </div>
+
+          <div class="portal-bar-group">
+            <div class="portal-bars-cluster">
+              <div class="portal-bar b-blue" style="height:28px"><span class="portal-bar-val">285</span></div>
+              <div class="portal-bar b-yellow" style="height:118px"><span class="portal-bar-val">1180</span></div>
+              <div class="portal-bar b-blue" style="height:67px"><span class="portal-bar-val">670</span></div>
+              <div class="portal-bar b-red" style="height:120px"><span class="portal-bar-val">1200</span></div>
+            </div>
+            <span class="portal-bar-label">Antidiabetic</span>
+          </div>
+
+          <div class="portal-bar-group">
+            <div class="portal-bars-cluster">
+              <div class="portal-bar b-green" style="height:42px"><span class="portal-bar-val">420</span></div>
+              <div class="portal-bar b-yellow" style="height:20px"><span class="portal-bar-val">200</span></div>
+            </div>
+            <span class="portal-bar-label">Syrups</span>
+          </div>
+
+          <div class="portal-bar-group">
+            <div class="portal-bars-cluster">
+              <div class="portal-bar b-blue" style="height:88px"><span class="portal-bar-val">880</span></div>
+            </div>
+            <span class="portal-bar-label">OTC Care</span>
+          </div>
+        </div>
+        <div class="portal-y-axis right">
+          <span>100%</span>
+          <span>80%</span>
+          <span>50%</span>
+          <span>20%</span>
+          <span>0%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Supply Chain & Purchases Trend (Line Chart) -->
+    <div class="portal-card">
+      <div class="portal-card-header">
+        <h3>Supply Chain &amp; Monthly Procurement</h3>
+        <span class="portal-badge-pill">+18.4% Growth</span>
+      </div>
+      <div class="portal-svg-wrap">
+        <svg viewBox="0 0 600 130" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="scGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.28"/>
+              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/>
+            </linearGradient>
+          </defs>
+          <!-- Grid lines -->
+          <line x1="0" y1="10" x2="600" y2="10" stroke="#f1f5f9" stroke-dasharray="3"/>
+          <line x1="0" y1="45" x2="600" y2="45" stroke="#f1f5f9" stroke-dasharray="3"/>
+          <line x1="0" y1="80" x2="600" y2="80" stroke="#f1f5f9" stroke-dasharray="3"/>
+          <line x1="0" y1="115" x2="600" y2="115" stroke="#f1f5f9" stroke-dasharray="3"/>
+
+          <!-- Shaded Area -->
+          <polygon points="30,100 110,90 200,60 300,75 400,45 500,25 570,20 570,120 30,120" fill="url(#scGrad)"/>
+
+          <!-- Blue Primary Line -->
+          <polyline points="30,100 110,90 200,60 300,75 400,45 500,25 570,20" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+
+          <!-- Green Secondary Line -->
+          <polyline points="30,115 110,110 200,90 300,90 400,70 500,55 570,60" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
+
+          <!-- Nodes Blue -->
+          <circle cx="30" cy="100" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2"/>
+          <circle cx="110" cy="90" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2"/>
+          <circle cx="200" cy="60" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2"/>
+          <circle cx="300" cy="75" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2"/>
+          <circle cx="400" cy="45" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2"/>
+          <circle cx="500" cy="25" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2"/>
+          <circle cx="570" cy="20" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2"/>
+
+          <!-- Nodes Green -->
+          <circle cx="30" cy="115" r="4" fill="#fff" stroke="#10b981" stroke-width="2"/>
+          <circle cx="110" cy="110" r="4" fill="#fff" stroke="#10b981" stroke-width="2"/>
+          <circle cx="200" cy="90" r="4" fill="#fff" stroke="#10b981" stroke-width="2"/>
+          <circle cx="300" cy="90" r="4" fill="#fff" stroke="#10b981" stroke-width="2"/>
+          <circle cx="400" cy="70" r="4.5" fill="#fff" stroke="#10b981" stroke-width="2"/>
+          <circle cx="500" cy="55" r="4" fill="#fff" stroke="#10b981" stroke-width="2"/>
+          <circle cx="570" cy="60" r="4" fill="#fff" stroke="#10b981" stroke-width="2"/>
+
+          <!-- Tooltip Callout -->
+          <rect x="260" y="52" width="80" height="20" rx="4" fill="#ffffff" stroke="#cbd5e1" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))"/>
+          <text x="300" y="66" font-size="11" font-weight="700" fill="#2563eb" text-anchor="middle">₹47,878</text>
+        </svg>
+      </div>
+      <div class="portal-axis-dates">
+        <span>Apr 2026</span>
+        <span>May 2026</span>
+        <span>Jun 2026</span>
+        <span>Jul 2026</span>
+        <span>Aug 2026</span>
+        <span>Sep 2026</span>
+        <span>Oct 2026</span>
+      </div>
+      <div class="portal-bottom-legend">
+        <span><i class="portal-legend-line" style="background:#3b82f6"></i> Wholesale Purchases</span>
+        <span><i class="portal-legend-line" style="background:#f59e0b"></i> Retail OTC Sales</span>
+        <span><i class="portal-legend-line" style="background:#10b981"></i> Supplier Returns (CN)</span>
+      </div>
+    </div>
+
+    <!-- Bottom Row: Scheduled Rx vs OTC Split & Valuation -->
+    <div class="portal-grid-2">
+      <div class="portal-card">
+        <h3 style="margin:0 0 12px 0">Scheduled Drugs (Rx) Ratio</h3>
+        <div class="portal-donut-container">
+          <span style="font-weight:700; color:#64748b; font-size:12px">36% OTC</span>
+          <div class="portal-donut-chart">
+            <div class="portal-donut-center">35%<br><small style="font-size:10px; font-weight:600; color:#64748b">Sch H/H1</small></div>
+          </div>
+          <span style="font-weight:700; color:#64748b; font-size:12px">20% Gen</span>
+        </div>
+      </div>
+
+      <div class="portal-card">
+        <h3 style="margin:0 0 10px 0">Stock Valuation (INR)</h3>
+        <div class="portal-stat-badge-row">
+          <b>Active Inventory</b>
+          <button class="portal-stat-link" onclick="go('inventory')">View All &gt;</button>
+        </div>
+        <div class="portal-stat-line">
+          <span>Total Catalog Items</span>
+          <b>${S.meds.length} Medicines</b>
+        </div>
+        <div class="portal-stat-line">
+          <span><span style="display:inline-block; width:8px; height:8px; background:#10b981; border-radius:50%"></span> Customer Credit Dues</span>
+          <b class="${creditDues > 0 ? 'wn' : ''}">${inr(creditDues)}</b>
+        </div>
+        <div class="portal-stat-line" style="border:none">
+          <span>Current In-Stock Value</span>
+          <b>${inr(stockVal)}</b>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderScreen2() {
+  const stockItems = [
+    { n: 'Paracetamol 650mg (Dolo)', p: 32.50 },
+    { n: 'Amoxicillin & Clav 625mg (Augmentin)', p: 204.50 },
+    { n: 'Azithromycin 500mg (Azithral)', p: 119.00 },
+    { n: 'Pantoprazole DSR 40mg (Pan-D)', p: 195.00 },
+    { n: 'Metformin 500mg SR (Glycomet)', p: 44.00 },
+    { n: 'Cetirizine 10mg (Cetzine)', p: 21.00 },
+    { n: 'Telmisartan 40mg (Telma)', p: 115.00 },
+    { n: 'Atorvastatin 10mg (Atorva)', p: 98.00 },
+    { n: 'Montelukast & Levocetirizine (Montair-LC)', p: 168.00 },
+    { n: 'ORS Orange Electrolyte Sachet 21g', p: 22.00 },
+    { n: 'Vitamin C 500mg Chewable (Limcee)', p: 28.50 },
+    { n: 'Diclofenac Sodium Gel 30g (Volini)', p: 145.00 },
+    { n: 'Cough Syrup 100ml (Ascoril-D)', p: 118.00 },
+    { n: 'B-Complex with Zinc (Becosules)', p: 54.00 }
+  ];
+
+  return `
+    <!-- Top 2 Columns: Indian Medicine Price Master & GST Billing Summary -->
+    <div class="portal-grid-2">
+      <!-- Left Card: Medicine Price Master -->
+      <div class="portal-card">
+        <div class="portal-subtab-header">
+          <button class="portal-subtab-btn ${S.anaSubTab === 'overview' ? 'active' : ''}" onclick="S.anaSubTab='overview';draw()">Overview</button>
+          <button class="portal-subtab-btn ${S.anaSubTab === 'price' ? 'active' : ''}" onclick="S.anaSubTab='price';draw()">Retail Price (MRP)</button>
+        </div>
+        <div class="portal-table-scroll">
+          <table class="portal-clean-table">
+            <thead>
+              <tr>
+                <th>Medicine / Formulation</th>
+                <th style="text-align:right">MRP (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${stockItems.map(item => `
+                <tr>
+                  <td>${esc(item.n)}</td>
+                  <td class="val-bold">${inr(item.p)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div style="text-align:center; padding-top:6px; color:#94a3b8; font-size:14px; cursor:pointer" onclick="go('inventory')">
+          View All Inventory ⌵
+        </div>
+      </div>
+
+      <!-- Right Card: Indian GST Medical Store Billing Breakdown -->
+      <div class="portal-card billing-card-body">
+        <h3 style="margin:0 0 4px 0">Tax Invoice Summary</h3>
+        <div class="bill-row"><span>Base Retail Amount (MRP)</span><b>₹1,450.00</b></div>
+        <div class="bill-row"><span>Trade / Counter Discount (5%)</span><b>-₹72.50</b></div>
+        <div class="bill-row"><span>Taxable Value</span><b>₹1,377.50</b></div>
+        <div class="bill-row"><span>CGST @ 2.5%</span><b>₹34.44</b></div>
+        <div class="bill-row"><span>SGST @ 2.5%</span><b>₹34.44</b></div>
+        <div class="bill-row"><span>IGST @ 0%</span><b>₹0.00</b></div>
+        <div class="bill-row"><span>Round Off Adjustment</span><b>-₹0.38</b></div>
+        <div class="bill-row total"><span>Net Payable Amount</span><b>₹1,446.00</b></div>
+        <div class="bill-row"><span>Payment Status</span><span class="portal-comment-box">Paid via UPI / QR</span></div>
+
+        <div class="portal-paid-badge">PAID</div>
+        <button class="portal-sock-btn" onclick="toast('Invoice saved and dispatched to records');go('bills')">Settle &amp; Print Bill</button>
+        <div class="portal-link-text" onclick="go('billing')">New Prescription Billing &gt;</div>
+      </div>
+    </div>
+
+    <!-- Middle: Auto Invoice / Monthly Invoicing Velocity Curve -->
+    <div class="portal-card">
+      <div class="portal-card-header">
+        <h3>Monthly GST Invoice Velocity</h3>
+        <button class="portal-icon-btn" onclick="go('bills')">⋮</button>
+      </div>
+      <div class="portal-svg-wrap">
+        <svg viewBox="0 0 600 120" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="autoInvGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.22"/>
+              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/>
+            </linearGradient>
+          </defs>
+          <line x1="0" y1="15" x2="600" y2="15" stroke="#f1f5f9" stroke-dasharray="3"/>
+          <line x1="0" y1="65" x2="600" y2="65" stroke="#f1f5f9" stroke-dasharray="3"/>
+          <line x1="0" y1="110" x2="600" y2="110" stroke="#f1f5f9" stroke-dasharray="3"/>
+
+          <!-- Area -->
+          <polygon points="40,105 130,55 220,50 310,65 400,90 490,75 570,30 570,115 40,115" fill="url(#autoInvGrad)"/>
+
+          <!-- Blue Curve -->
+          <polyline points="40,105 130,55 220,50 310,65 400,90 490,75 570,30" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+
+          <!-- Dots -->
+          <circle cx="40" cy="105" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2.5"/>
+          <circle cx="130" cy="55" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2.5"/>
+          <circle cx="220" cy="50" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2.5"/>
+          <circle cx="310" cy="65" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2.5"/>
+          <circle cx="400" cy="90" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2.5"/>
+          <circle cx="490" cy="75" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2.5"/>
+          <circle cx="570" cy="30" r="4.5" fill="#fff" stroke="#3b82f6" stroke-width="2.5"/>
+        </svg>
+      </div>
+      <div class="portal-axis-dates">
+        <span>Apr 2026</span>
+        <span>May 2026</span>
+        <span>Jun 2026</span>
+        <span>Jul 2026</span>
+        <span>Aug 2026</span>
+        <span>Sep 2026</span>
+        <span>Oct 2026</span>
+      </div>
+    </div>
+
+    <!-- Bottom Checkbox Table: Verified Indian Pharma Suppliers / Lots -->
+    <div class="portal-card">
+      <div class="w">
+        <table class="portal-clean-table portal-checkbox-table">
+          <thead>
+            <tr>
+              <th style="width:30px"><input type="checkbox" checked></th>
+              <th>Medicine / Supplier Name</th>
+              <th>Rate / Unit (₹)</th>
+              <th>HSN Code</th>
+              <th style="text-align:right">GST Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="checkbox" checked></td>
+              <td><b>Sun Pharma Laboratories Ltd. <small style="display:block; color:#64748b">Batch SP-8842 · Tax Invoice INV-1044</small></b></td>
+              <td>₹1,050.00</td>
+              <td>HSN 3004</td>
+              <td style="text-align:right">12% GST</td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" checked></td>
+              <td><b>Cipla Healthcare Distributors <small style="display:block; color:#64748b">Batch CP-3019 · Tax Invoice INV-1045</small></b></td>
+              <td>₹330.00</td>
+              <td>HSN 3004</td>
+              <td style="text-align:right">12% GST</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
